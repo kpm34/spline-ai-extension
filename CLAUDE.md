@@ -136,6 +136,20 @@ User Command + GUI Context → Planning Agent → Visual Agent (screenshot) → 
 - Popup in `popup.html/js` (extension config)
 - Options in `options.html/js` (API key settings)
 
+**UI Design**:
+- **Font**: Inter font family from Google Fonts for modern, professional typography
+- **Icons**: SVG-based icon system (Feather-style, stroke-based) replaces all emojis
+- **Icon Classes**: `.icon` (20px), `.icon-sm` (16px), `.icon-lg` (24px) for consistent sizing
+- **Color Scheme**: Dark theme with purple gradient accent (#667eea to #764ba2)
+- **No Emojis**: All UI uses SVG icons for a polished, sophisticated appearance
+- **Simplified Config**: Removed redundant API key inputs - extension uses server-side .env configuration
+
+**Key UI Files**:
+- `Frontend/overlay.css` - Main overlay styles with Inter font
+- `Frontend/content.js` - Overlay HTML structure with SVG icons
+- `Frontend/options.html` - Settings page (Inter font, SVG icons, simplified)
+- `Frontend/popup.html` - Extension popup with quick commands
+
 ### Spline Runtime Integration (src/spline-runtime.js)
 
 Uses official `@splinetool/runtime` package:
