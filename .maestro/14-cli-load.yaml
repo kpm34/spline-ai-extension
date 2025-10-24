@@ -1,0 +1,8 @@
+appId: com.terminal.spline-cli
+---
+# Test Flow: CLI Load Command
+- launchApp
+- runFlow: ../tests/runtime/test-cli-load.js
+- assertVisible: "API server is healthy"
+- assertVisible: "Load command sent successfully"
+- assertVisible: "TEST PASSED"

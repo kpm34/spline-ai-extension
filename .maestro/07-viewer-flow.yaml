@@ -1,0 +1,15 @@
+appId: com.terminal.spline-cli
+---
+# Test Flow: Start Live Preview Viewer
+- launchApp
+# Start viewer (with custom port to avoid conflicts)
+- runScript: |
+    spline-edit viewer --port 8081 &
+    sleep 2
+- assertVisible: "Viewer started successfully"
+- assertVisible: "http://localhost:8081"
+
+# Check if server is running
+- runScript: |
+    curl -I http://localhost:8081
+- assertVisible: "200 OK"

@@ -1,0 +1,14 @@
+appId: com.apple.mobilesafari
+---
+# Test Flow: Spline Gallery Browse
+# Tests browsing the Spline community gallery
+
+- launchApp
+- tapOn: "URL"
+- inputText: "https://spline.design/gallery"
+- tapOn: "Go"
+- waitForAnimationToEnd:
+    timeout: 5000
+- scroll
+- takeScreenshot: "spline-gallery"
+- assertVisible: "Community"

@@ -1,0 +1,49 @@
+url: https://app.spline.design
+---
+# Test 08: Prompt Mode vs GUI Mode Toggle
+# Tests switching between AI prompt input and visual GUI panels
+
+- launchApp
+- waitForAnimationToEnd:
+    timeout: 15000
+
+# PROMPT MODE - Bottom input area
+- tapOn:
+    point: "50%,95%"
+- waitForAnimationToEnd
+- takeScreenshot: "01-prompt-mode-input"
+
+# Type AI prompt simulation
+- inputText: "glass button"
+- waitForAnimationToEnd
+- takeScreenshot: "02-prompt-entered"
+
+# Press Enter to trigger (would activate SIM.ai)
+- pressKey: Enter
+- waitForAnimationToEnd
+- takeScreenshot: "03-prompt-submitted"
+
+# GUI MODE - Switch to panels
+# Toggle area (top-right settings)
+- tapOn:
+    point: "95%,10%"
+- waitForAnimationToEnd
+- takeScreenshot: "04-gui-mode-toggle"
+
+# Material panel visible
+- tapOn:
+    point: "90%,30%"
+- waitForAnimationToEnd
+- takeScreenshot: "05-gui-material-panel"
+
+# Interaction panel visible
+- tapOn:
+    point: "90%,50%"
+- waitForAnimationToEnd
+- takeScreenshot: "06-gui-interaction-panel"
+
+# Text panel visible
+- tapOn:
+    point: "90%,70%"
+- waitForAnimationToEnd
+- takeScreenshot: "07-gui-text-panel"

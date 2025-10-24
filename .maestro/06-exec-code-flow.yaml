@@ -1,0 +1,19 @@
+appId: com.terminal.spline-cli
+---
+# Test Flow: Execute JavaScript Code
+- launchApp
+# Open project first
+- runScript: |
+    spline-edit open project-1
+
+# Execute inline code
+- runScript: |
+    spline-edit exec "console.log('Hello from Spline CLI')"
+- assertVisible: "Code executed successfully"
+
+# Test with file (create test file first)
+- runScript: |
+    echo "console.log('Test script')" > test-script.js
+    spline-edit exec --file test-script.js
+- assertVisible: "Code executed successfully"
+- assertVisible: "test-script.js"

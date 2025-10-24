@@ -1,0 +1,10 @@
+appId: com.terminal.spline-cli
+---
+# Test Flow: Open Project by Name
+- launchApp
+- runScript: |
+    spline-edit fetch --open "Sky Lab"
+- assertVisible: "Searching for project: \"Sky Lab\""
+- assertVisible: "Found:"
+- assertVisible: "Opening project in browser"
+- assertVisible: "Project opened in browser"

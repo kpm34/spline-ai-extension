@@ -1,0 +1,41 @@
+{
+  "manifest_version": 3,
+  "name": "Spline CLI + SIM.ai Workflows",
+  "version": "2.0.0",
+  "description": "Powerful CLI overlay for Spline with SIM.ai workflow automation",
+  "permissions": [
+    "activeTab",
+    "storage",
+    "scripting"
+  ],
+  "host_permissions": [
+    "https://app.spline.design/*",
+    "http://localhost:8080/*",
+    "http://localhost:3003/*",
+    "http://localhost:3004/*",
+    "https://api.sim.ai/*",
+    "https://api.openai.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://app.spline.design/*"],
+      "js": ["content.js"],
+      "css": ["overlay.css"],
+      "run_at": "document_end"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Spline CLI + SIM.ai"
+  },
+  "options_page": "options.html",
+  "web_accessible_resources": [
+    {
+      "resources": ["overlay.html", "overlay.css", "overlay.js"],
+      "matches": ["https://app.spline.design/*"]
+    }
+  ]
+}

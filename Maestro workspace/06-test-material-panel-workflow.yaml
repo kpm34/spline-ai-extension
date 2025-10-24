@@ -1,0 +1,31 @@
+url: https://app.spline.design
+---
+# Test 06: Material Panel Workflow
+# Tests the flow for creating/applying materials (future extension panel)
+
+- launchApp
+- waitForAnimationToEnd:
+    timeout: 15000
+
+# Simulate selecting an object (where material panel would appear)
+- tapOn:
+    point: "50%,50%"
+- waitForAnimationToEnd
+- takeScreenshot: "01-object-selected"
+
+# Right sidebar area (where Material Panel will be)
+- tapOn:
+    point: "90%,40%"
+- waitForAnimationToEnd
+- takeScreenshot: "02-material-panel-area"
+
+# Scroll through materials area
+- scroll
+- waitForAnimationToEnd
+- takeScreenshot: "03-materials-scrolled"
+
+# Click on a material option area
+- tapOn:
+    point: "90%,50%"
+- waitForAnimationToEnd
+- takeScreenshot: "04-material-selected"

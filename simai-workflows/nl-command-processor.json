@@ -1,0 +1,247 @@
+{
+  "name": "Natural Language Command Processor",
+  "description": "Processes natural language commands and executes them on Spline scenes. Converts commands like 'make the cube red' into Spline API calls.",
+  "version": "1.0.0",
+  "tags": ["spline", "nlp", "automation", "ai"],
+  "metadata": {
+    "author": "Spline CLI Editor",
+    "created": "2025-10-22",
+    "category": "AI Processing"
+  },
+  "blocks": [
+    {
+      "id": "webhook-trigger",
+      "type": "trigger",
+      "name": "Command Input",
+      "config": {
+        "type": "webhook",
+        "method": "POST",
+        "path": "/spline/command",
+        "auth": false
+      },
+      "position": { "x": 0, "y": 0 }
+    },
+    {
+      "id": "validate-input",
+      "type": "function",
+      "name": "Validate Input",
+      "config": {
+        "code": "if (!input.command || typeof input.command !== 'string') { throw new Error('Invalid command format'); } return { command: input.command.trim(), scene: input.scene || 'default' };"
+      },
+      "position": { "x": 200, "y": 0 }
+    },
+    {
+      "id": "parse-command",
+      "type": "llm",
+      "name": "Parse Natural Language",
+      "config": {
+        "provider": "openai",
+        "model": "gpt-4o-mini",
+        "temperature": 0.1,
+        "max_tokens": 300,
+        "response_format": "json",
+        "system_prompt": "You are a Spline 3D scene command parser. Convert natural language to structured API calls.\n\nAvailable Operations:\n1. POSITION: Move objects in 3D space\n   - API: setObjectProperty(objectName, 'position', {x, y, z})\n   - Examples: \"move cube to (10,20,30)\", \"shift sphere left\"\n\n2. ROTATION: Rotate objects (use radians)\n   - API: setObjectProperty(objectName, 'rotation', {x, y, z})\n   - Examples: \"rotate cube 45 degrees\", \"flip sphere upside down\"\n   - Note: Convert degrees to radians (degrees * Math.PI / 180)\n\n3. SCALE: Resize objects\n   - API: setObjectProperty(objectName, 'scale', {x, y, z} or number)\n   - Examples: \"make cube bigger\", \"scale sphere by 2\"\n\n4. VISIBILITY: Show/hide objects\n   - API: setObjectProperty(objectName, 'visible', boolean)\n   - Examples: \"hide cube\", \"show all spheres\"\n\n5. COLOR: Change object colors\n   - API: setVariable(variableName, colorValue)\n   - Examples: \"make cube red\", \"color sphere #FF5733\"\n   - Use hex format for colors\n\n6. VARIABLE: Set Spline variables\n   - API: setVariable(name, value)\n   - Examples: \"set speed to 10\", \"change rotation state to true\"\n\n7. EVENT: Trigger Spline events\n   - API: emitEvent(eventName, data)\n   - Examples: \"trigger explosion\", \"fire click event\"\n\nRespond with JSON ONLY:\n{\n  \"commands\": [\n    {\n      \"action\": \"setObjectProperty|setVariable|emitEvent\",\n      \"object\": \"object name or null\",\n      \"property\": \"position|rotation|scale|visible|null\",\n      \"value\": value (object, number, boolean, or string),\n      \"variable\": \"variable name if setVariable\",\n      \"event\": \"event name if emitEvent\",\n      \"description\": \"human readable description\"\n    }\n  ],\n  \"summary\": \"overall command summary\"\n}",
+        "prompt": "Parse this Spline command: {{validated.command}}"
+      },
+      "position": { "x": 400, "y": 0 }
+    },
+    {
+      "id": "validate-commands",
+      "type": "function",
+      "name": "Validate Commands",
+      "config": {
+        "code": "const parsed = JSON.parse(llm_output.content); if (!parsed.commands || !Array.isArray(parsed.commands)) { throw new Error('Invalid command structure'); } return parsed;"
+      },
+      "position": { "x": 600, "y": 0 }
+    },
+    {
+      "id": "execute-commands",
+      "type": "loop",
+      "name": "Execute Each Command",
+      "config": {
+        "array": "{{commands.commands}}",
+        "itemName": "cmd"
+      },
+      "position": { "x": 800, "y": 0 }
+    },
+    {
+      "id": "call-spline-api",
+      "type": "api",
+      "name": "Send to Spline Extension",
+      "config": {
+        "method": "POST",
+        "url": "http://localhost:8080/api/execute",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "action": "{{cmd.action}}",
+          "object": "{{cmd.object}}",
+          "property": "{{cmd.property}}",
+          "value": "{{cmd.value}}",
+          "variable": "{{cmd.variable}}",
+          "event": "{{cmd.event}}"
+        },
+        "timeout": 5000
+      },
+      "position": { "x": 1000, "y": 0 }
+    },
+    {
+      "id": "collect-results",
+      "type": "function",
+      "name": "Collect Results",
+      "config": {
+        "code": "return { success: true, executed: loop_results.length, results: loop_results, summary: commands.summary };"
+      },
+      "position": { "x": 1200, "y": 0 }
+    },
+    {
+      "id": "error-handler",
+      "type": "function",
+      "name": "Handle Errors",
+      "config": {
+        "code": "return { success: false, error: error.message, command: input.command };"
+      },
+      "position": { "x": 600, "y": 200 }
+    },
+    {
+      "id": "response",
+      "type": "output",
+      "name": "Return Response",
+      "config": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{{final_result}}"
+      },
+      "position": { "x": 1400, "y": 0 }
+    }
+  ],
+  "connections": [
+    {
+      "from": "webhook-trigger",
+      "to": "validate-input",
+      "type": "data"
+    },
+    {
+      "from": "validate-input",
+      "to": "parse-command",
+      "type": "data",
+      "label": "validated"
+    },
+    {
+      "from": "parse-command",
+      "to": "validate-commands",
+      "type": "data",
+      "label": "llm_output"
+    },
+    {
+      "from": "validate-commands",
+      "to": "execute-commands",
+      "type": "data",
+      "label": "commands"
+    },
+    {
+      "from": "execute-commands",
+      "to": "call-spline-api",
+      "type": "loop",
+      "label": "cmd"
+    },
+    {
+      "from": "call-spline-api",
+      "to": "collect-results",
+      "type": "data",
+      "label": "loop_results"
+    },
+    {
+      "from": "collect-results",
+      "to": "response",
+      "type": "data",
+      "label": "final_result"
+    },
+    {
+      "from": "validate-input",
+      "to": "error-handler",
+      "type": "error"
+    },
+    {
+      "from": "parse-command",
+      "to": "error-handler",
+      "type": "error"
+    },
+    {
+      "from": "validate-commands",
+      "to": "error-handler",
+      "type": "error"
+    },
+    {
+      "from": "execute-commands",
+      "to": "error-handler",
+      "type": "error"
+    },
+    {
+      "from": "error-handler",
+      "to": "response",
+      "type": "data",
+      "label": "final_result"
+    }
+  ],
+  "triggers": [
+    {
+      "type": "webhook",
+      "enabled": true,
+      "config": {
+        "path": "/spline/command",
+        "method": "POST"
+      }
+    },
+    {
+      "type": "event",
+      "enabled": true,
+      "config": {
+        "event": "spline.command.received"
+      }
+    }
+  ],
+  "variables": {
+    "default_scene": "main",
+    "api_timeout": 5000,
+    "retry_attempts": 3
+  },
+  "examples": [
+    {
+      "name": "Simple Position",
+      "input": {
+        "command": "move cube to (10, 20, 30)"
+      },
+      "expected_output": {
+        "success": true,
+        "executed": 1,
+        "summary": "Position cube at coordinates (10, 20, 30)"
+      }
+    },
+    {
+      "name": "Multiple Commands",
+      "input": {
+        "command": "make the sphere red and hide the cylinder"
+      },
+      "expected_output": {
+        "success": true,
+        "executed": 2,
+        "summary": "Change sphere to red and hide cylinder"
+      }
+    },
+    {
+      "name": "Rotation",
+      "input": {
+        "command": "rotate the camera 45 degrees on the y axis"
+      },
+      "expected_output": {
+        "success": true,
+        "executed": 1,
+        "summary": "Rotate camera 45 degrees on Y axis"
+      }
+    }
+  ]
+}

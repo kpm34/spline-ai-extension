@@ -1,0 +1,9 @@
+appId: com.terminal.spline-cli
+---
+# Test Flow: CLI Set Command
+- launchApp
+- runFlow: ../tests/runtime/test-cli-set.js
+- assertVisible: "Set command sent successfully"
+- assertVisible: "Set command is queued"
+- assertVisible: "Command cleared successfully"
+- assertVisible: "TEST PASSED"

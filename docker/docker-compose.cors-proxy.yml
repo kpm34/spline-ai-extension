@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  cors-proxy:
+    image: nginx:alpine
+    container_name: simai-cors-proxy
+    restart: unless-stopped
+    ports:
+      - "3004:3004"
+    volumes:
+      - ./docker/nginx-cors-proxy.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - default
+    network_mode: "host"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "--quiet", "http://localhost:3004"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+networks:
+  default:
+    name: sim_default
+    external: true

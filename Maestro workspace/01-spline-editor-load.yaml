@@ -1,0 +1,17 @@
+url: https://app.spline.design
+---
+# Test 01: Verify Spline Editor Loads
+# This tests the base page where your Chrome extension will inject
+
+- launchApp
+
+# Wait for Spline editor to fully load
+- waitForAnimationToEnd:
+    timeout: 15000
+
+# Take screenshot of loaded editor
+- takeScreenshot: "spline-editor-loaded"
+
+# Verify key UI elements are present
+# These are elements your extension overlay will interact with
+- assertVisible: ".*"

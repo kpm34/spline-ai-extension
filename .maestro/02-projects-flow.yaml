@@ -1,0 +1,10 @@
+appId: com.terminal.spline-cli
+---
+# Test Flow: List Projects
+- launchApp
+- runScript: |
+    spline-edit projects
+- assertVisible: "My Awesome 3D Scene"
+- assertVisible: "Product Showcase"
+- assertVisible: "project-1"
+- assertVisible: "project-2"

@@ -1,0 +1,9 @@
+appId: com.terminal.spline-cli
+---
+# Test Flow: CLI Variable Commands
+- launchApp
+- runFlow: ../tests/runtime/test-cli-var.js
+- assertVisible: "Variable set command sent"
+- assertVisible: "Variable get command sent"
+- assertVisible: "Variable command queued"
+- assertVisible: "TEST PASSED"

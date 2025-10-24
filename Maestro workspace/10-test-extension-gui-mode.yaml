@@ -1,0 +1,76 @@
+appId: https://app.spline.design
+---
+# Test Chrome Extension - GUI Panel Mode
+
+- launchApp
+- waitForAnimationToEnd:
+    timeout: 15000
+
+- takeScreenshot: 01-spline-loaded
+
+# Click the floating toggle button (⚡) in bottom-right
+- tapOn:
+    point: "95%,95%"
+- waitForAnimationToEnd:
+    timeout: 2000
+
+- takeScreenshot: 02-overlay-opened
+
+# Click GUI Panels button
+- tapOn:
+    text: "GUI Panels"
+    optional: true
+- waitForAnimationToEnd:
+    timeout: 1000
+
+- takeScreenshot: 03-gui-panels-active
+
+# Verify panel tabs are visible
+- assertVisible: "Material"
+- assertVisible: "Object"
+- assertVisible: "Text"
+- assertVisible: "Interaction"
+- assertVisible: "Animation"
+- assertVisible: "Export"
+
+# Verify the prompt input is NOT visible (should be hidden in GUI mode)
+- assertNotVisible:
+    text: "Execute"
+    optional: true
+
+# Click Material panel tab
+- tapOn: "Material"
+- waitForAnimationToEnd
+
+- takeScreenshot: 04-material-panel
+
+# Verify material form fields
+- assertVisible: "Type:"
+- assertVisible: "Glass"
+- assertVisible: "Transparency"
+- assertVisible: "Color"
+- assertVisible: "Roughness"
+
+# Click Object panel tab
+- tapOn: "Object"
+- waitForAnimationToEnd
+
+- takeScreenshot: 05-object-panel
+
+# Click the Generate button
+- tapOn: "Generate with AI"
+- waitForAnimationToEnd:
+    timeout: 3000
+
+- takeScreenshot: 06-clicked-generate
+
+# Test switching back to AI Prompt mode
+- tapOn: "AI Prompt"
+- waitForAnimationToEnd
+
+- takeScreenshot: 07-ai-prompt-mode
+
+# Verify prompt input IS visible in prompt mode
+- assertVisible: "Execute"
+
+- takeScreenshot: 08-test-complete

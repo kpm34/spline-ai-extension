@@ -1,0 +1,19 @@
+appId: com.terminal.spline-cli
+---
+# Test Flow: Batch Operations
+- launchApp
+# Open project first
+- runScript: |
+    spline-edit open project-1
+
+# Test batch update
+- runScript: |
+    spline-edit batch --objects "Cube,Sphere" --property position --value "0,50,0"
+- assertVisible: "Updated 2 objects"
+- assertVisible: "Cube: position = 0,50,0"
+- assertVisible: "Sphere: position = 0,50,0"
+
+# Test cloning
+- runScript: |
+    spline-edit batch --clone Cube --count 3 --offset "10,0,0"
+- assertVisible: "Created 3 clones"

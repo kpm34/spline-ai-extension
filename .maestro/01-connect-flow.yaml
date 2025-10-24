@@ -1,0 +1,8 @@
+appId: com.terminal.spline-cli
+---
+# Test Flow: Connect to Spline
+- launchApp
+- runScript: |
+    spline-edit connect --token test-token-123
+- assertVisible: "Successfully connected"
+- assertVisible: "kashpm2002@gmail.com"

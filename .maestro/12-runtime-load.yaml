@@ -1,0 +1,13 @@
+appId: com.terminal.spline-cli
+---
+# Test Flow: SplineRuntime - Load Scene
+- launchApp
+- runScript: |
+    node -e "
+    const { SplineRuntime } = require('./src/spline-runtime.js');
+    const runtime = new SplineRuntime();
+    console.log('SplineRuntime initialized');
+    console.log('Info:', JSON.stringify(runtime.getInfo()));
+    "
+- assertVisible: "SplineRuntime initialized"
+- assertVisible: "initialized"

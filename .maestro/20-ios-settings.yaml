@@ -1,0 +1,11 @@
+appId: com.apple.Preferences
+---
+# Test Flow: iOS Settings Navigation
+# Basic test to verify simulator UI interaction
+
+- launchApp
+- assertVisible: "Settings"
+- tapOn: "Safari"
+- assertVisible: "Search Engine"
+- back
+- assertVisible: "Settings"

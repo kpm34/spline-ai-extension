@@ -1,0 +1,11 @@
+appId: com.apple.mobilesafari
+---
+# Test Flow: Capture Spline App Screenshot
+# Takes a screenshot of the Spline editor interface
+
+- launchApp
+- tapOn: "URL"
+- inputText: "https://app.spline.design"
+- tapOn: "Go"
+- waitForAnimationToEnd
+- takeScreenshot: "spline-homepage"

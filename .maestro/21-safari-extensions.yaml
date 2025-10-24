@@ -1,0 +1,12 @@
+appId: com.apple.mobilesafari
+---
+# Test Flow: Safari Extensions Check
+# Navigates to Safari settings to check extension setup
+
+- launchApp
+- stopApp
+- launchApp:
+    appId: com.apple.Preferences
+- tapOn: "Safari"
+- scroll
+- assertVisible: "Extensions"

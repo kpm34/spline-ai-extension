@@ -1,0 +1,45 @@
+appId: com.terminal.spline-cli
+---
+# Test Flow: Complete Workflow
+- launchApp
+
+# Step 1: Connect
+- runScript: |
+    spline-edit connect --token demo-token
+- assertVisible: "Successfully connected"
+
+# Step 2: List projects
+- runScript: |
+    spline-edit projects
+- assertVisible: "My Awesome 3D Scene"
+
+# Step 3: Open project
+- runScript: |
+    spline-edit open project-1
+- assertVisible: "Project opened successfully"
+
+# Step 4: Check status
+- runScript: |
+    spline-edit status
+- assertVisible: "Connected"
+- assertVisible: "kashpm2002"
+- assertVisible: "Project project-1"
+
+# Step 5: Inspect objects
+- runScript: |
+    spline-edit inspect objects
+- assertVisible: "Cube"
+- assertVisible: "Sphere"
+
+# Step 6: Batch update
+- runScript: |
+    spline-edit batch --objects "Cube,Sphere" --property scale --value "2,2,2"
+- assertVisible: "Updated 2 objects"
+
+# Step 7: Screenshot
+- runScript: |
+    spline-edit screenshot --output workflow-test.png
+- assertVisible: "Screenshot saved"
+
+# Success!
+- assertVisible: "✅"

@@ -1,0 +1,9 @@
+appId: com.terminal.spline-cli
+---
+# Test Flow: Open Spline Account
+- launchApp
+- runScript: |
+    spline-edit fetch --open
+- assertVisible: "Opening your Spline account"
+- assertVisible: "Spline account opened"
+- assertVisible: "https://app.spline.design/home"

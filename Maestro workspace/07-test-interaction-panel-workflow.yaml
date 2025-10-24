@@ -1,0 +1,32 @@
+url: https://app.spline.design
+---
+# Test 07: Interaction Panel Workflow
+# Tests areas for click/hover/event configuration (future extension feature)
+
+- launchApp
+- waitForAnimationToEnd:
+    timeout: 15000
+
+# Select object to add interaction
+- tapOn:
+    point: "50%,50%"
+- waitForAnimationToEnd
+- takeScreenshot: "01-object-for-interaction"
+
+# Interaction panel area (right sidebar, different section)
+- tapOn:
+    point: "90%,60%"
+- waitForAnimationToEnd
+- takeScreenshot: "02-interaction-panel-area"
+
+# Click event configuration area
+- tapOn:
+    point: "85%,65%"
+- waitForAnimationToEnd
+- takeScreenshot: "03-click-event-area"
+
+# Hover effect area
+- tapOn:
+    point: "85%,70%"
+- waitForAnimationToEnd
+- takeScreenshot: "04-hover-effect-area"

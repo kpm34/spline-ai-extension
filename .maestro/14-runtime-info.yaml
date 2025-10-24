@@ -1,0 +1,24 @@
+appId: com.terminal.spline-cli
+---
+# Test Flow: SplineRuntime - Get Info
+- launchApp
+- runScript: |
+    node -e "
+    const { SplineRuntime } = require('./src/spline-runtime.js');
+    const runtime = new SplineRuntime();
+    const info = runtime.getInfo();
+
+    console.log('Runtime Info Test');
+    console.log('Initialized:', info.initialized);
+    console.log('Loaded:', info.loaded);
+    console.log('Has Canvas:', info.hasCanvas);
+
+    if (info.initialized === false && info.loaded === false && info.hasCanvas === false) {
+      console.log('✅ Info method works correctly');
+    } else {
+      console.log('❌ Unexpected info state');
+    }
+    "
+- assertVisible: "Runtime Info Test"
+- assertVisible: "Initialized: false"
+- assertVisible: "Loaded: false"

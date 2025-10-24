@@ -1,0 +1,28 @@
+appId: com.terminal.spline-cli
+---
+# Test Flow: Inspect Scene Objects
+- launchApp
+# First open a project
+- runScript: |
+    spline-edit open project-1
+- assertVisible: "Project opened successfully"
+
+# Inspect objects
+- runScript: |
+    spline-edit inspect objects
+- assertVisible: "Objects in Scene"
+- assertVisible: "Cube"
+- assertVisible: "Sphere"
+- assertVisible: "Camera"
+
+# Inspect materials
+- runScript: |
+    spline-edit inspect materials
+- assertVisible: "Materials"
+- assertVisible: "Material 1"
+
+# Inspect cameras
+- runScript: |
+    spline-edit inspect cameras
+- assertVisible: "Cameras"
+- assertVisible: "FOV"

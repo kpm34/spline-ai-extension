@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "maestro": {
+      "command": "maestro",
+      "args": ["mcp"],
+      "description": "Maestro UI testing framework - control emulators, write tests, debug flows"
+    },
+    "spline-cli": {
+      "command": "node",
+      "args": ["/Users/kashyapmaheshwari/spline-cli-editor/mcp-server/spline-mcp-server.js"],
+      "description": "Spline CLI MCP Server - provides tools for Spline scene manipulation and testing"
+    }
+  }
+}

@@ -1,0 +1,7 @@
+appId: com.terminal.spline-cli
+---
+# Test Flow: SplineRuntime Initialization
+- launchApp
+- runFlow: ../tests/runtime/test-init.js
+- assertVisible: "Runtime created successfully"
+- assertVisible: "TEST PASSED"

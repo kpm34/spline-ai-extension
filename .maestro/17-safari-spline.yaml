@@ -1,0 +1,10 @@
+appId: com.apple.mobilesafari
+---
+# Test Flow: Open Spline in Safari
+# Tests basic Safari navigation to Spline web app
+
+- launchApp
+- tapOn: "URL"
+- inputText: "https://app.spline.design"
+- tapOn: "Go"
+- assertVisible: "Spline"

@@ -1,0 +1,23 @@
+appId: com.apple.mobilesafari
+---
+# Test Flow: Complete Simulator UI Test
+# Comprehensive test of iOS simulator interaction capabilities
+
+- launchApp
+- assertVisible: "Safari"
+
+# Test search bar interaction
+- tapOn: "URL"
+- inputText: "https://www.google.com"
+- tapOn: "Go"
+- waitForAnimationToEnd
+
+# Verify page loaded
+- assertVisible: "Google"
+
+# Test navigation
+- back
+- assertVisible: "Safari"
+
+# Take final screenshot
+- takeScreenshot: "simulator-ui-complete"

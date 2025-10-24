@@ -1,0 +1,12 @@
+appId: com.apple.mobilesafari
+---
+# Test Flow: Spline Login Flow
+# Tests navigation to login page and UI presence
+
+- launchApp
+- tapOn: "URL"
+- inputText: "https://app.spline.design/signin"
+- tapOn: "Go"
+- assertVisible: "Sign in"
+- assertVisible: "Email"
+- assertVisible: "Password"

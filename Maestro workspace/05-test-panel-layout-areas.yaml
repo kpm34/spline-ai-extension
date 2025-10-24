@@ -1,0 +1,38 @@
+url: https://app.spline.design
+---
+# Test 05: Panel Layout Areas for GUI Extension
+# Maps screen regions for different panels: Material, Interaction, Text, etc.
+
+- launchApp
+- waitForAnimationToEnd:
+    timeout: 15000
+
+# LEFT SIDEBAR - Object/Scene Panel Area
+- tapOn:
+    point: "5%,30%"
+- waitForAnimationToEnd
+- takeScreenshot: "01-left-sidebar-object-panel"
+
+# RIGHT SIDEBAR - Properties/Material Panel Area
+- tapOn:
+    point: "95%,30%"
+- waitForAnimationToEnd
+- takeScreenshot: "02-right-sidebar-properties-panel"
+
+# TOP BAR - Tool Selection Area
+- tapOn:
+    point: "50%,5%"
+- waitForAnimationToEnd
+- takeScreenshot: "03-top-toolbar-area"
+
+# BOTTOM CENTER - AI Prompt Input Area
+- tapOn:
+    point: "50%,95%"
+- waitForAnimationToEnd
+- takeScreenshot: "04-bottom-prompt-area"
+
+# CENTER OVERLAY - Floating Panel Area
+- tapOn:
+    point: "80%,20%"
+- waitForAnimationToEnd
+- takeScreenshot: "05-floating-panel-area"

@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Spline CLI Overlay</title>
+    <style>
+        /* CLI Overlay Styles */
+        #spline-cli-overlay {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            width: 400px;
+            max-height: 600px;
+            background: rgba(10, 10, 10, 0.98);
+            border: 2px solid #5b8fff;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+            z-index: 999999;
+            display: none;
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 13px;
+            color: #ffffff;
+            overflow: hidden;
+            backdrop-filter: blur(10px);
+        }
+
+        #spline-cli-overlay.visible {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .cli-header {
+            padding: 15px 20px;
+            background: linear-gradient(135deg, #5b8fff 0%, #4a7aee 100%);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: move;
+            user-select: none;
+        }
+
+        .cli-title {
+            font-weight: 700;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .cli-title::before {
+            content: '⚡';
+            font-size: 16px;
+        }
+
+        .cli-close {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            padding: 0;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+
+        .cli-close:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .cli-body {
+            padding: 20px;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .cli-input-container {
+            padding: 15px 20px;
+            background: rgba(20, 20, 20, 0.8);
+            border-top: 1px solid #333;
+        }
+
+        .cli-input-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(30, 30, 30, 0.8);
+            padding: 10px 15px;
+            border-radius: 8px;
+            border: 1px solid #444;
+        }
+
+        .cli-input-wrapper:focus-within {
+            border-color: #5b8fff;
+            box-shadow: 0 0 0 2px rgba(91, 143, 255, 0.2);
+        }
+
+        .cli-prompt {
+            color: #5b8fff;
+            font-weight: 700;
+        }
+
+        #cli-input {
+            flex: 1;
+            background: none;
+            border: none;
+            color: white;
+            outline: none;
+            font-family: inherit;
+            font-size: inherit;
+        }
+
+        #cli-input::placeholder {
+            color: #666;
+        }
+
+        .cli-output {
+            margin-bottom: 15px;
+        }
+
+        .cli-output-line {
+            padding: 8px 12px;
+            margin-bottom: 4px;
+            border-radius: 6px;
+            line-height: 1.6;
+        }
+
+        .cli-output-line.success {
+            background: rgba(91, 255, 143, 0.1);
+            border-left: 3px solid #5bff8f;
+        }
+
+        .cli-output-line.error {
+            background: rgba(255, 91, 91, 0.1);
+            border-left: 3px solid #ff5b5b;
+        }
+
+        .cli-output-line.info {
+            background: rgba(91, 143, 255, 0.1);
+            border-left: 3px solid #5b8fff;
+        }
+
+        .cli-commands {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 8px;
+        }
+
+        .cli-command-btn {
+            background: rgba(91, 143, 255, 0.1);
+            border: 1px solid #5b8fff;
+            color: #5b8fff;
+            padding: 10px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 12px;
+            text-align: left;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .cli-command-btn:hover {
+            background: rgba(91, 143, 255, 0.2);
+            transform: translateX(2px);
+        }
+
+        .cli-command-btn .icon {
+            font-size: 16px;
+        }
+
+        .cli-command-btn .label {
+            flex: 1;
+        }
+
+        .cli-command-btn .key {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 10px;
+            color: #999;
+        }
+
+        .cli-help {
+            padding: 10px;
+            background: rgba(91, 143, 255, 0.05);
+            border-radius: 6px;
+            margin-top: 15px;
+            font-size: 11px;
+            color: #999;
+        }
+
+        .cli-help strong {
+            color: #5b8fff;
+        }
+
+        /* Floating toggle button */
+        #spline-cli-toggle {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, #5b8fff 0%, #4a7aee 100%);
+            border: none;
+            border-radius: 50%;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: 0 4px 20px rgba(91, 143, 255, 0.4);
+            z-index: 999998;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #spline-cli-toggle:hover {
+            transform: scale(1.1);
+            box-shadow: 0 6px 30px rgba(91, 143, 255, 0.6);
+        }
+
+        #spline-cli-toggle.active {
+            background: linear-gradient(135deg, #ff5b8f 0%, #ee4a7a 100%);
+        }
+
+        /* Animations */
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        #spline-cli-overlay.visible {
+            animation: slideIn 0.3s ease-out;
+        }
+
+        /* Status indicator */
+        .cli-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 15px;
+            background: rgba(30, 30, 30, 0.8);
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-size: 11px;
+        }
+
+        .cli-status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #5bff8f;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .cli-status-dot.disconnected {
+            background: #ff5b5b;
+        }
+    </style>
+</head>
+<body>
+    <!-- Floating toggle button -->
+    <button id="spline-cli-toggle" title="Toggle Spline CLI (Ctrl+K)">
+        ⚡
+    </button>
+
+    <!-- CLI Overlay -->
+    <div id="spline-cli-overlay">
+        <div class="cli-header">
+            <div class="cli-title">Spline CLI</div>
+            <button class="cli-close" id="cli-close">×</button>
+        </div>
+
+        <div class="cli-body">
+            <div class="cli-status">
+                <div class="cli-status-dot" id="status-dot"></div>
+                <span id="status-text">Connected to Spline</span>
+            </div>
+
+            <div class="cli-commands">
+                <button class="cli-command-btn" data-command="inspect">
+                    <span class="icon">🔍</span>
+                    <span class="label">Inspect Scene</span>
+                    <span class="key">I</span>
+                </button>
+
+                <button class="cli-command-btn" data-command="list-objects">
+                    <span class="icon">📦</span>
+                    <span class="label">List Objects</span>
+                    <span class="key">L</span>
+                </button>
+
+                <button class="cli-command-btn" data-command="screenshot">
+                    <span class="icon">📸</span>
+                    <span class="label">Screenshot</span>
+                    <span class="key">S</span>
+                </button>
+
+                <button class="cli-command-btn" data-command="export">
+                    <span class="icon">💾</span>
+                    <span class="label">Export Scene</span>
+                    <span class="key">E</span>
+                </button>
+
+                <button class="cli-command-btn" data-command="viewer">
+                    <span class="icon">🎨</span>
+                    <span class="label">Open in Viewer</span>
+                    <span class="key">V</span>
+                </button>
+
+                <button class="cli-command-btn" data-command="console">
+                    <span class="icon">💻</span>
+                    <span class="label">Open Console</span>
+                    <span class="key">C</span>
+                </button>
+            </div>
+
+            <div id="cli-output" class="cli-output"></div>
+
+            <div class="cli-help">
+                <strong>Keyboard Shortcuts:</strong><br>
+                Ctrl+K - Toggle CLI<br>
+                Esc - Close CLI<br>
+                I/L/S/E/V/C - Quick commands
+            </div>
+        </div>
+
+        <div class="cli-input-container">
+            <div class="cli-input-wrapper">
+                <span class="cli-prompt">$</span>
+                <input
+                    type="text"
+                    id="cli-input"
+                    placeholder="Type command or press button above..."
+                    autocomplete="off"
+                />
+            </div>
+        </div>
+    </div>
+
+    <script src="spline-cli-overlay.js"></script>
+</body>
+</html>

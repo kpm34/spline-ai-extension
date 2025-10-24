@@ -1,0 +1,8 @@
+appId: com.terminal.spline-cli
+---
+# Test Flow: Preset System
+- launchApp
+- runFlow: ../tests/runtime/test-presets.js
+- assertVisible: "Runtime created"
+- assertVisible: "Preset directory"
+- assertVisible: "TEST PASSED"

@@ -1,0 +1,9 @@
+appId: com.terminal.spline-cli
+---
+# Test Flow: List All Projects
+- launchApp
+- runScript: |
+    spline-edit fetch --list
+- assertVisible: "Fetching your Spline projects"
+- assertVisible: "Found"
+- assertVisible: "projects"

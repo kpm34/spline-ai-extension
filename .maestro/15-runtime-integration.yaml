@@ -1,0 +1,38 @@
+appId: com.terminal.spline-cli
+---
+# Test Flow: SplineRuntime - Full Integration Test
+- launchApp
+- runScript: |
+    node -e "
+    const { SplineRuntime } = require('./src/spline-runtime.js');
+    const fs = require('fs-extra');
+    const path = require('path');
+    const os = require('os');
+
+    console.log('=== SplineRuntime Integration Test ===');
+
+    // Test 1: Create runtime
+    const runtime = new SplineRuntime();
+    console.log('✅ Runtime created');
+
+    // Test 2: Check initial state
+    const info = runtime.getInfo();
+    console.log('✅ Initial state:', info.initialized ? 'initialized' : 'not initialized');
+
+    // Test 3: Check preset directory exists
+    const presetPath = path.join(os.homedir(), '.spline-cli', 'presets');
+    if (fs.existsSync(presetPath)) {
+      console.log('✅ Preset directory created');
+    }
+
+    // Test 4: List presets
+    runtime.listPresets().then(presets => {
+      console.log('✅ Preset listing works, found:', presets.length, 'presets');
+      console.log('=== All Tests Passed ===');
+    }).catch(err => {
+      console.error('❌ Test failed:', err.message);
+    });
+    "
+- assertVisible: "Runtime created"
+- assertVisible: "Preset directory created"
+- assertVisible: "All Tests Passed"

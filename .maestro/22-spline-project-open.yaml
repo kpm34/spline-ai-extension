@@ -1,0 +1,13 @@
+appId: com.apple.mobilesafari
+---
+# Test Flow: Open Spline Project
+# Tests opening a specific Spline project by URL
+
+- launchApp
+- tapOn: "URL"
+- inputText: "https://app.spline.design/file/your-project-id"
+- tapOn: "Go"
+- waitForAnimationToEnd:
+    timeout: 10000
+- assertVisible: "3D"
+- takeScreenshot: "spline-project-loaded"

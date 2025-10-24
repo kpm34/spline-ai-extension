@@ -1,0 +1,14 @@
+appId: com.terminal.spline-cli
+---
+# Test Flow: Screenshot Capture
+- launchApp
+# Open project first
+- runScript: |
+    spline-edit open project-1
+
+# Capture screenshot
+- runScript: |
+    spline-edit screenshot --output test-screenshot.png --width 1920 --height 1080
+- assertVisible: "Screenshot saved"
+- assertVisible: "test-screenshot.png"
+- assertVisible: "1920x1080"

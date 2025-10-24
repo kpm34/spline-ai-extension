@@ -1,0 +1,32 @@
+appId: com.apple.mobilesafari
+---
+# Test Flow: End-to-End Browser Workflow
+# Complete workflow from Safari launch to Spline project interaction
+
+- launchApp
+- assertVisible: "Safari"
+
+# Navigate to Spline
+- tapOn: "URL"
+- inputText: "https://app.spline.design"
+- tapOn: "Go"
+- waitForAnimationToEnd:
+    timeout: 10000
+
+# Take screenshot of homepage
+- takeScreenshot: "01-spline-home"
+
+# Check main UI elements
+- assertVisible: "Spline"
+
+# Navigate to gallery
+- tapOn: "URL"
+- inputText: "https://spline.design/gallery"
+- tapOn: "Go"
+- waitForAnimationToEnd
+- takeScreenshot: "02-spline-gallery"
+
+# Return home
+- back
+- waitForAnimationToEnd
+- takeScreenshot: "03-final-state"

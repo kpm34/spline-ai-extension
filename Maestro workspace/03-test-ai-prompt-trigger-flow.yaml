@@ -1,0 +1,35 @@
+url: https://app.spline.design
+---
+# Test 03: User Flow That Would Trigger AI Prompt Overlay
+# Simulates user actions that would activate your AI prompting UI
+
+- launchApp
+- waitForAnimationToEnd:
+    timeout: 15000
+
+# User starts working in editor
+- takeScreenshot: "01-editor-ready"
+
+# User might click to create object (where AI could assist)
+- tapOn:
+    point: "20%,20%"
+
+- waitForAnimationToEnd
+
+- takeScreenshot: "02-object-interaction"
+
+# User might use keyboard shortcut (extension trigger point)
+- pressKey: command+k
+
+- waitForAnimationToEnd
+
+- takeScreenshot: "03-keyboard-shortcut"
+
+# User might right-click (context menu - extension insertion point)
+- tapOn:
+    point: "50%,50%"
+    longPress: true
+
+- waitForAnimationToEnd
+
+- takeScreenshot: "04-context-menu"

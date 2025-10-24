@@ -1,0 +1,32 @@
+url: https://app.spline.design
+---
+# Test 04: Test Areas for Customizable GUI Elements
+# Identifies screen regions for your extension's customizable interface
+
+- launchApp
+- waitForAnimationToEnd:
+    timeout: 15000
+
+# Top-left area (potential toolbar location)
+- tapOn:
+    point: "10%,10%"
+- waitForAnimationToEnd
+- takeScreenshot: "top-left-area"
+
+# Top-right area (potential settings/controls)
+- tapOn:
+    point: "90%,10%"
+- waitForAnimationToEnd
+- takeScreenshot: "top-right-area"
+
+# Bottom-left (potential command palette)
+- tapOn:
+    point: "10%,90%"
+- waitForAnimationToEnd
+- takeScreenshot: "bottom-left-area"
+
+# Center-bottom (potential AI input bar)
+- tapOn:
+    point: "50%,90%"
+- waitForAnimationToEnd
+- takeScreenshot: "bottom-center-area"

@@ -1,0 +1,29 @@
+url: https://app.spline.design
+---
+# Test 02: Find Injection Points for AI Overlay
+# Tests the page structure to verify where extension can inject overlay UI
+
+- launchApp
+- waitForAnimationToEnd:
+    timeout: 15000
+
+# Take screenshot of initial state
+- takeScreenshot: "before-overlay"
+
+# Test clicking on canvas area (where overlay would appear)
+- tapOn:
+    point: "50%,50%"
+
+- waitForAnimationToEnd:
+    timeout: 2000
+
+# Screenshot after interaction
+- takeScreenshot: "canvas-clicked"
+
+# Test right-side panel area (potential overlay location)
+- tapOn:
+    point: "90%,50%"
+
+- waitForAnimationToEnd
+
+- takeScreenshot: "right-panel-area"
