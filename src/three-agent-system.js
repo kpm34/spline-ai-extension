@@ -1,6 +1,7 @@
 require('dotenv').config({ silent: true });
 const OpenAI = require('openai');
 const { SplineRuntime } = require('./spline-runtime');
+const { RAGSystem } = require('./rag-system');
 
 /**
  * Three-Agent System for Intelligent Spline Editing
@@ -10,14 +11,15 @@ const { SplineRuntime } = require('./spline-runtime');
  * Agent 3: Editor Agent - Executes commands and reports back
  *
  * Flow:
- * 1. User types command → Planning Agent breaks it down
+ * 1. User types command → Planning Agent breaks it down (with RAG context)
  * 2. Visual Agent screenshots current state → formats changes
  * 3. Editor executes commands → Visual Agent validates results
  */
 class ThreeAgentSystem {
-  constructor(page, runtime) {
+  constructor(page, runtime, rag = null) {
     this.page = page; // Puppeteer page for screenshots
     this.runtime = runtime; // SplineRuntime instance
+    this.rag = rag; // RAG system for context retrieval
     this.openai = new OpenAI({
       apiKey: process.env.OPENAI_API_KEY,
     });
@@ -435,11 +437,32 @@ Respond with JSON:
   /**
    * Planning Agent with GUI Context
    * Enhanced version that accepts context from Chrome extension GUI
+   * Now includes RAG retrieval for UI patterns and materials
    */
   async planningAgentWithContext(userCommand, guiContext = {}) {
     console.log('🧠 Agent 1 (Planning): Analyzing command with GUI context...');
 
     const contextDescription = this.formatGUIContext(guiContext);
+
+    // RAG Enhancement: Retrieve relevant context
+    let ragContext = '';
+    if (this.rag) {
+      try {
+        // Detect current page from URL or context
+        const currentPage = this.detectCurrentPage();
+
+        console.log('🔍 RAG: Searching knowledge base...');
+        const enhanced = await this.rag.enhancePrompt(userCommand, currentPage);
+
+        if (enhanced.retrievedUIPatterns.length > 0 || enhanced.retrievedMaterials.length > 0) {
+          ragContext = `\n\n=== KNOWLEDGE BASE CONTEXT ===\n${enhanced.contextSummary}\n===========================\n`;
+          console.log(`   📚 Retrieved: ${enhanced.retrievedUIPatterns.length} UI patterns, ${enhanced.retrievedMaterials.length} materials`);
+        }
+      } catch (error) {
+        console.warn('⚠️  RAG retrieval failed:', error.message);
+        // Continue without RAG if it fails
+      }
+    }
 
     const response = await this.openai.chat.completions.create({
       model: 'gpt-4o-mini',
@@ -454,12 +477,14 @@ Respond with JSON:
 Your role:
 1. Understand user intent and break down into actionable steps
 2. Consider GUI context provided by the user
-3. Identify what information is needed from the Visual Agent
-4. Plan the sequence of operations
-5. Consider edge cases and prerequisites
+3. Use knowledge base context when available (UI patterns, materials)
+4. Identify what information is needed from the Visual Agent
+5. Plan the sequence of operations
+6. Consider edge cases and prerequisites
 
 GUI Context Available:
 ${contextDescription}
+${ragContext}
 
 Available Operations:
 - setObjectProperty: position, rotation, scale, visible
@@ -496,6 +521,24 @@ Respond with JSON:
     console.log(`   Steps: ${plan.steps?.length || 0}`);
 
     return plan;
+  }
+
+  /**
+   * Detect current Spline page from URL
+   */
+  detectCurrentPage() {
+    if (!this.page) return 'scene-editor'; // Default
+
+    try {
+      const url = this.page.url();
+      if (url.includes('/home')) return 'homepage';
+      if (url.includes('/community')) return 'community';
+      if (url.includes('/library')) return 'library';
+      if (url.includes('/file/')) return 'scene-editor';
+      return 'scene-editor';
+    } catch (error) {
+      return 'scene-editor';
+    }
   }
 
   /**

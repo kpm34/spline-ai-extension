@@ -13,6 +13,7 @@ const cors = require('cors');
 const puppeteer = require('puppeteer');
 const { ThreeAgentSystem } = require('./three-agent-system');
 const { SplineRuntime } = require('./spline-runtime');
+const { RAGSystem } = require('./rag-system');
 
 const app = express();
 const PORT = process.env.API_PORT || 8081;
@@ -23,6 +24,23 @@ app.use(express.json({ limit: '10mb' }));
 
 // Store active sessions
 const sessions = new Map();
+
+// Initialize RAG System (global, shared across sessions)
+let ragSystem = null;
+
+async function initializeRAG() {
+    try {
+        log('Initializing RAG system...', 'info');
+        ragSystem = new RAGSystem(process.env.OPENAI_API_KEY);
+        await ragSystem.initialize();
+        const stats = await ragSystem.getStats();
+        log(`RAG system ready (${stats.uiPatterns} UI patterns, ${stats.materials} materials)`, 'success');
+    } catch (error) {
+        log(`RAG initialization failed: ${error.message}`, 'warning');
+        log('Three-Agent System will work without RAG context', 'warning');
+        ragSystem = null;
+    }
+}
 
 // Logging
 function log(message, type = 'info') {
@@ -86,8 +104,8 @@ app.post('/api/session/init', async (req, res) => {
         const runtime = new SplineRuntime();
         await runtime.initialize(page);
 
-        // Create Three-Agent System
-        const system = new ThreeAgentSystem(page, runtime);
+        // Create Three-Agent System with RAG
+        const system = new ThreeAgentSystem(page, runtime, ragSystem);
 
         // Store session
         const sessionId = generateSessionId();
@@ -318,7 +336,7 @@ process.on('SIGTERM', cleanup);
 /**
  * Start server
  */
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
     console.log('\n' + '='.repeat(60));
     console.log('🚀 Three-Agent System API Server');
     console.log('='.repeat(60));
@@ -328,6 +346,11 @@ app.listen(PORT, () => {
     console.log('='.repeat(60) + '\n');
 
     log('Server ready to accept connections', 'success');
+
+    // Initialize RAG system in background
+    initializeRAG().catch(err => {
+        log(`RAG initialization error: ${err.message}`, 'warning');
+    });
 });
 
 module.exports = app;
