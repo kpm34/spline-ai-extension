@@ -55,6 +55,71 @@ function log(message, type = 'info') {
 }
 
 /**
+ * Generate plan for extension mode (no Puppeteer)
+ * Uses RAG + OpenAI to create execution plan
+ */
+async function generatePlanForExtension(prompt, context = {}, rag = null) {
+    const OpenAI = require('openai');
+    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+    // Enhance prompt with RAG if available
+    let ragContext = '';
+    if (rag) {
+        try {
+            const enhanced = await rag.enhancePrompt(prompt, 'scene-editor');
+            ragContext = enhanced.contextSummary || '';
+        } catch (error) {
+            log(`RAG enhancement failed: ${error.message}`, 'warning');
+        }
+    }
+
+    // Build system prompt
+    const systemPrompt = `You are a Spline 3D scene planning assistant. Generate a step-by-step plan to execute the user's command.
+
+${ragContext ? `\n### Knowledge Base Context:\n${ragContext}\n` : ''}
+
+### User Context:
+${JSON.stringify(context, null, 2)}
+
+### Your Task:
+Analyze the command and create a detailed execution plan with specific steps.
+
+Return a JSON object with:
+{
+    "intent": "brief description of what user wants",
+    "steps": [
+        {
+            "action": "spline_command_name",
+            "description": "what this step does",
+            "params": { /* command parameters */ }
+        }
+    ],
+    "validation": "how to verify success"
+}
+
+Available Spline commands:
+- setObjectProperty(name, property, value) - Change object properties
+- setMaterial(objectName, material) - Apply material
+- createObject(type, properties) - Create new object
+- setVariable(name, value) - Set scene variable
+- emitEvent(eventName) - Trigger event`;
+
+    // Call OpenAI
+    const response = await openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: prompt }
+        ],
+        response_format: { type: 'json_object' },
+        temperature: 0.3
+    });
+
+    const plan = JSON.parse(response.choices[0].message.content);
+    return plan;
+}
+
+/**
  * Health check endpoint
  */
 app.get('/health', (req, res) => {
@@ -68,13 +133,13 @@ app.get('/health', (req, res) => {
 });
 
 /**
- * Initialize a new session
+ * Initialize a new session (Puppeteer mode - for standalone use)
  * POST /api/session/init
- * Body: { sceneUrl: string }
+ * Body: { sceneUrl: string, mode?: 'puppeteer' | 'extension' }
  */
 app.post('/api/session/init', async (req, res) => {
     try {
-        const { sceneUrl } = req.body;
+        const { sceneUrl, mode = 'extension' } = req.body;
 
         if (!sceneUrl) {
             return res.status(400).json({
@@ -83,11 +148,31 @@ app.post('/api/session/init', async (req, res) => {
             });
         }
 
-        log(`Initializing session for scene: ${sceneUrl}`);
+        log(`Initializing session for scene: ${sceneUrl} (mode: ${mode})`);
 
-        // Launch browser
+        // Extension mode: No Puppeteer, lightweight session
+        if (mode === 'extension') {
+            const sessionId = generateSessionId();
+            sessions.set(sessionId, {
+                mode: 'extension',
+                sceneUrl,
+                createdAt: Date.now(),
+                ragSystem // Store RAG reference for agent queries
+            });
+
+            log(`Extension session initialized: ${sessionId}`, 'success');
+
+            return res.json({
+                success: true,
+                sessionId,
+                mode: 'extension',
+                message: 'Extension session initialized (no browser launched)'
+            });
+        }
+
+        // Puppeteer mode: Launch browser (for standalone CLI use)
         const browser = await puppeteer.launch({
-            headless: false, // Set to true in production
+            headless: false,
             args: ['--no-sandbox', '--disable-setuid-sandbox']
         });
 
@@ -110,6 +195,7 @@ app.post('/api/session/init', async (req, res) => {
         // Store session
         const sessionId = generateSessionId();
         sessions.set(sessionId, {
+            mode: 'puppeteer',
             browser,
             page,
             runtime,
@@ -117,12 +203,13 @@ app.post('/api/session/init', async (req, res) => {
             createdAt: Date.now()
         });
 
-        log(`Session initialized: ${sessionId}`, 'success');
+        log(`Puppeteer session initialized: ${sessionId}`, 'success');
 
         res.json({
             success: true,
             sessionId,
-            message: 'Session initialized successfully'
+            mode: 'puppeteer',
+            message: 'Puppeteer session initialized successfully'
         });
 
     } catch (error) {
@@ -175,12 +262,29 @@ app.post('/api/execute', async (req, res) => {
             }
         }
 
-        log(`Executing command: "${prompt}"`);
+        log(`Executing command: "${prompt}" (mode: ${session.mode || 'puppeteer'})`);
         if (Object.keys(context).length > 0) {
             log(`Context provided: ${JSON.stringify(context)}`);
         }
 
-        // Execute with Three-Agent System
+        // Extension mode: Just run Planning Agent and return commands
+        if (session.mode === 'extension') {
+            const plan = await generatePlanForExtension(prompt, context, ragSystem);
+
+            log(`Extension mode: Plan generated`, 'success');
+
+            return res.json({
+                success: true,
+                executionId: generateExecutionId(),
+                mode: 'extension',
+                plan: plan,
+                prompt: prompt,
+                context: context,
+                message: 'Extension should execute these commands in the page'
+            });
+        }
+
+        // Puppeteer mode: Execute with Three-Agent System
         const result = await session.system.executeWithContext(prompt, context);
 
         log(`Command executed successfully`, 'success');
@@ -255,10 +359,12 @@ app.post('/api/session/close', async (req, res) => {
             });
         }
 
-        log(`Closing session: ${sessionId}`);
+        log(`Closing session: ${sessionId} (mode: ${session.mode || 'puppeteer'})`);
 
-        // Close browser
-        await session.browser.close();
+        // Close browser only for Puppeteer mode
+        if (session.mode === 'puppeteer' && session.browser) {
+            await session.browser.close();
+        }
 
         // Remove from sessions
         sessions.delete(sessionId);
@@ -319,7 +425,10 @@ async function cleanup() {
 
     for (const [sessionId, session] of sessions.entries()) {
         try {
-            await session.browser.close();
+            // Only close browser for Puppeteer mode
+            if (session.mode === 'puppeteer' && session.browser) {
+                await session.browser.close();
+            }
             log(`Closed session: ${sessionId}`, 'success');
         } catch (error) {
             log(`Error closing session ${sessionId}: ${error.message}`, 'error');

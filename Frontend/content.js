@@ -35,6 +35,78 @@
         chrome.runtime.onMessage.addListener(handleMessage);
 
         console.log('[Spline CLI] Overlay ready');
+
+        // Auto-detect scene load and initialize session
+        detectSceneLoad();
+    }
+
+    // Wait for element to appear in DOM
+    function waitForElement(selector, timeout = 10000) {
+        return new Promise((resolve) => {
+            const element = document.querySelector(selector);
+            if (element) {
+                resolve(element);
+                return;
+            }
+
+            const observer = new MutationObserver((mutations, obs) => {
+                const element = document.querySelector(selector);
+                if (element) {
+                    obs.disconnect();
+                    resolve(element);
+                }
+            });
+
+            observer.observe(document.body, {
+                childList: true,
+                subtree: true
+            });
+
+            // Timeout fallback
+            setTimeout(() => {
+                observer.disconnect();
+                resolve(null);
+            }, timeout);
+        });
+    }
+
+    // Detect when Spline scene is loaded and auto-initialize session
+    async function detectSceneLoad() {
+        console.log('[Spline CLI] Waiting for Spline scene to load...');
+
+        // Wait for canvas element (indicates Spline is loaded)
+        const canvas = await waitForElement('canvas', 15000);
+
+        if (canvas) {
+            console.log('[Spline CLI] Scene detected, initializing session...');
+
+            // Send message to background script to initialize session
+            try {
+                const response = await chrome.runtime.sendMessage({
+                    action: 'initializeSession',
+                    sceneUrl: window.location.href
+                });
+
+                if (response.success) {
+                    if (response.reused) {
+                        console.log('[Spline CLI] Using existing session:', response.sessionId);
+                        addOutput('Session ready (reused existing)', 'success');
+                    } else {
+                        console.log('[Spline CLI] Session initialized:', response.sessionId);
+                        addOutput('Session initialized successfully', 'success');
+                    }
+                } else {
+                    console.error('[Spline CLI] Session init failed:', response.error);
+                    addOutput('Session initialization failed: ' + response.error, 'error');
+                }
+            } catch (error) {
+                console.error('[Spline CLI] Session init error:', error);
+                addOutput('Session initialization error: ' + error.message, 'error');
+            }
+        } else {
+            console.warn('[Spline CLI] Canvas not found - scene may not be loaded');
+            addOutput('Warning: Spline scene not detected', 'warning');
+        }
     }
 
     // Load settings from storage
@@ -86,6 +158,12 @@
                             <circle cx="12" cy="13" r="4"/>
                         </svg>
                         Screenshot
+                    </button>
+                    <button class="nav-btn" data-cmd="inspector" title="Inspect Spline API">
+                        <svg class="icon icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+                        </svg>
+                        API Inspector
                     </button>
                     <button class="nav-btn" data-cmd="export" title="Export guide">
                         <svg class="icon icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -513,11 +591,32 @@
             });
 
             if (response.success) {
-                addOutput('Command executed successfully!', 'success');
-                addOutput(`Execution ID: ${response.executionId}`, 'info');
+                // Extension mode: Show plan and execute
+                if (response.mode === 'extension' && response.plan) {
+                    addOutput('AI Plan Generated:', 'success');
+                    addOutput(`Intent: ${response.plan.intent}`, 'info');
+                    addOutput(`Steps to execute:`, 'info');
 
-                // Show execution details
-                if (response.result) {
+                    response.plan.steps?.forEach((step, index) => {
+                        addOutput(`  ${index + 1}. ${step.description}`, 'info');
+                        addOutput(`     Action: ${step.action}`, 'info');
+                        if (step.params) {
+                            addOutput(`     Params: ${JSON.stringify(step.params)}`, 'info');
+                        }
+                    });
+
+                    addOutput(`Validation: ${response.plan.validation}`, 'info');
+                    addOutput('', 'info');
+                    addOutput('Executing plan in scene...', 'info');
+
+                    // Execute the plan
+                    executePlanInPage(response.plan);
+                }
+                // Puppeteer mode: Show execution results
+                else if (response.result) {
+                    addOutput('Command executed successfully!', 'success');
+                    addOutput(`Execution ID: ${response.executionId}`, 'info');
+
                     const result = response.result;
                     if (result.plan) {
                         addOutput(`Intent: ${result.plan.intent}`, 'info');
@@ -832,6 +931,9 @@
                     case 'objects':
                         await commandObjects();
                         break;
+                    case 'inspector':
+                        await commandInspector();
+                        break;
                     case 'clear':
                         clearOutput();
                         break;
@@ -939,6 +1041,80 @@
     async function commandObjects() {
         addOutput('Listing objects...', 'info');
         await callViewerAPI('/api/info');
+    }
+
+    async function commandInspector() {
+        addOutput('🔍 Running Spline API Inspector...', 'info');
+        addOutput('This will search for Spline editor APIs', 'info');
+        addOutput('Check browser console (F12) for detailed output', 'info');
+
+        try {
+            // Load and inject inspector script
+            const response = await fetch(chrome.runtime.getURL('spline-editor-inspector.js'));
+            const inspectorCode = await response.text();
+
+            // Inject into page context
+            const script = document.createElement('script');
+            script.textContent = inspectorCode;
+            document.documentElement.appendChild(script);
+            script.remove();
+
+            // Wait a bit for inspector to run
+            await new Promise(r => setTimeout(r, 1000));
+
+            // Try to get results from window
+            const results = await new Promise((resolve) => {
+                const checkScript = document.createElement('script');
+                const resultId = `inspector_result_${Date.now()}`;
+
+                window.addEventListener(resultId, (e) => {
+                    resolve(e.detail);
+                }, { once: true });
+
+                checkScript.textContent = `
+                    window.dispatchEvent(new CustomEvent('${resultId}', {
+                        detail: window.__SPLINE_INSPECTOR_RESULTS__ || { error: 'No results found' }
+                    }));
+                `;
+
+                document.documentElement.appendChild(checkScript);
+                checkScript.remove();
+
+                // Timeout
+                setTimeout(() => resolve({ error: 'Timeout' }), 3000);
+            });
+
+            if (results.error) {
+                addOutput(`Error: ${results.error}`, 'error');
+            } else {
+                addOutput('', 'info');
+                addOutput('✅ Inspector completed!', 'success');
+                addOutput(`Found ${results.globals?.length || 0} global variables`, 'info');
+                addOutput(`Found ${results.sceneAPIs?.length || 0} scene API candidates`, 'info');
+                addOutput('', 'info');
+
+                if (results.globals && results.globals.length > 0) {
+                    addOutput('Global Variables:', 'info');
+                    results.globals.slice(0, 10).forEach(g => {
+                        addOutput(`  - window.${g}`, 'info');
+                    });
+                }
+
+                if (results.sceneAPIs && results.sceneAPIs.length > 0) {
+                    addOutput('', 'info');
+                    addOutput('Scene APIs:', 'success');
+                    results.sceneAPIs.forEach(api => {
+                        addOutput(`  ${api.global}: ${JSON.stringify(api)}`, 'info');
+                    });
+                }
+
+                addOutput('', 'info');
+                addOutput('📝 Full results in console (window.__SPLINE_INSPECTOR_RESULTS__)', 'info');
+            }
+
+        } catch (error) {
+            addOutput(`Inspector error: ${error.message}`, 'error');
+        }
     }
 
     // Call viewer API
@@ -1088,6 +1264,208 @@
             document.onmouseup = null;
             document.onmousemove = null;
         }
+    }
+
+    // Execute plan in the Spline scene
+    async function executePlanInPage(plan) {
+        addOutput('Starting execution...', 'info');
+
+        try {
+            // Execute each step
+            for (let i = 0; i < plan.steps.length; i++) {
+                const step = plan.steps[i];
+                addOutput(`Executing step ${i + 1}: ${step.description}`, 'info');
+
+                // Inject and execute the command in page context
+                const result = await executeStepInPage(step);
+
+                if (result.success) {
+                    addOutput(`  ✓ Step ${i + 1} completed`, 'success');
+                } else {
+                    addOutput(`  ✗ Step ${i + 1} failed: ${result.error}`, 'error');
+                }
+            }
+
+            addOutput('', 'info');
+            addOutput('Plan execution completed!', 'success');
+            addOutput(plan.validation, 'info');
+
+        } catch (error) {
+            addOutput(`Execution error: ${error.message}`, 'error');
+        }
+    }
+
+    // Execute a single step by injecting code into the page
+    function executeStepInPage(step) {
+        return new Promise((resolve) => {
+            // Create a script element to inject into page context
+            const script = document.createElement('script');
+            const callbackId = `spline_callback_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+            // Listen for the result from the page
+            window.addEventListener(callbackId, (event) => {
+                resolve(event.detail);
+            }, { once: true });
+
+            // Inject code to execute the Spline command
+            script.textContent = `
+                (function() {
+                    try {
+                        // Find the Spline canvas
+                        const canvas = document.querySelector('canvas');
+                        if (!canvas) {
+                            window.dispatchEvent(new CustomEvent('${callbackId}', {
+                                detail: { success: false, error: 'Canvas not found' }
+                            }));
+                            return;
+                        }
+
+                        const step = ${JSON.stringify(step)};
+
+                        // Try to find Spline application instance
+                        let splineApp = null;
+                        let scene = null;
+
+                        // Method 1: Check common global variables
+                        const possibleGlobals = ['__spline', '__app', 'splineApp', 'app', 'editor'];
+                        for (const globalName of possibleGlobals) {
+                            if (window[globalName] && window[globalName].scene) {
+                                splineApp = window[globalName];
+                                scene = splineApp.scene;
+                                console.log('[Spline CLI] Found Spline app at window.' + globalName);
+                                break;
+                            }
+                        }
+
+                        // Method 2: Check canvas for attached data
+                        if (!splineApp && canvas.__spline) {
+                            splineApp = canvas.__spline;
+                            scene = splineApp.scene;
+                            console.log('[Spline CLI] Found Spline app on canvas');
+                        }
+
+                        // Method 3: Search window for Three.js scene
+                        if (!scene) {
+                            for (const key in window) {
+                                const obj = window[key];
+                                if (obj && typeof obj === 'object' && obj.scene && obj.scene.children) {
+                                    scene = obj.scene;
+                                    console.log('[Spline CLI] Found Three.js scene at window.' + key);
+                                    break;
+                                }
+                            }
+                        }
+
+                        if (!scene) {
+                            window.dispatchEvent(new CustomEvent('${callbackId}', {
+                                detail: {
+                                    success: false,
+                                    error: 'Spline scene not accessible. Try using the inspector command first.'
+                                }
+                            }));
+                            return;
+                        }
+
+                        // Execute based on action type
+                        switch(step.action) {
+                            case 'setMaterial':
+                                // Change material properties
+                                const matObject = scene.getObjectByName(step.params.objectName);
+                                if (matObject) {
+                                    if (step.params.color) {
+                                        matObject.material.color.setStyle(step.params.color);
+                                    }
+                                    if (step.params.opacity !== undefined) {
+                                        matObject.material.opacity = step.params.opacity;
+                                        matObject.material.transparent = step.params.opacity < 1;
+                                    }
+                                    if (step.params.roughness !== undefined) {
+                                        matObject.material.roughness = step.params.roughness;
+                                    }
+                                    if (step.params.metalness !== undefined) {
+                                        matObject.material.metalness = step.params.metalness;
+                                    }
+                                    matObject.material.needsUpdate = true;
+                                    console.log('[Spline CLI] Material updated:', step.params);
+                                    window.dispatchEvent(new CustomEvent('${callbackId}', {
+                                        detail: { success: true, message: 'Material updated successfully' }
+                                    }));
+                                } else {
+                                    window.dispatchEvent(new CustomEvent('${callbackId}', {
+                                        detail: { success: false, error: 'Object not found: ' + step.params.objectName }
+                                    }));
+                                }
+                                break;
+
+                            case 'setObjectProperty':
+                                // Change object properties
+                                const propObject = scene.getObjectByName(step.params.objectName);
+                                if (propObject) {
+                                    const prop = step.params.property;
+                                    const value = step.params.value;
+
+                                    if (prop === 'position') {
+                                        propObject.position.set(value.x, value.y, value.z);
+                                    } else if (prop === 'rotation') {
+                                        propObject.rotation.set(value.x, value.y, value.z);
+                                    } else if (prop === 'scale') {
+                                        if (typeof value === 'number') {
+                                            propObject.scale.setScalar(value);
+                                        } else {
+                                            propObject.scale.set(value.x, value.y, value.z);
+                                        }
+                                    } else if (prop === 'visible') {
+                                        propObject.visible = value;
+                                    } else if (propObject[prop] !== undefined) {
+                                        propObject[prop] = value;
+                                    }
+
+                                    console.log('[Spline CLI] Property updated:', prop, value);
+                                    window.dispatchEvent(new CustomEvent('${callbackId}', {
+                                        detail: { success: true, message: 'Property updated successfully' }
+                                    }));
+                                } else {
+                                    window.dispatchEvent(new CustomEvent('${callbackId}', {
+                                        detail: { success: false, error: 'Object not found: ' + step.params.objectName }
+                                    }));
+                                }
+                                break;
+
+                            case 'createObject':
+                                // Create new object (basic implementation)
+                                console.log('[Spline CLI] Create object:', step.params);
+                                window.dispatchEvent(new CustomEvent('${callbackId}', {
+                                    detail: {
+                                        success: false,
+                                        error: 'Object creation not yet supported. Use Spline editor to add objects.'
+                                    }
+                                }));
+                                break;
+
+                            default:
+                                window.dispatchEvent(new CustomEvent('${callbackId}', {
+                                    detail: {
+                                        success: false,
+                                        error: 'Unknown action: ' + step.action
+                                    }
+                                }));
+                        }
+                    } catch (error) {
+                        window.dispatchEvent(new CustomEvent('${callbackId}', {
+                            detail: { success: false, error: error.message }
+                        }));
+                    }
+                })();
+            `;
+
+            document.documentElement.appendChild(script);
+            script.remove();
+
+            // Timeout fallback
+            setTimeout(() => {
+                resolve({ success: false, error: 'Execution timeout' });
+            }, 5000);
+        });
     }
 
     // Handle messages from extension

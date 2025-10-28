@@ -4,6 +4,11 @@
       "command": "npx",
       "args": ["-y", "@executeautomation/playwright-mcp-server"],
       "env": {}
+    },
+    "chrome-devtools": {
+      "command": "npx",
+      "args": ["-y", "chrome-devtools-mcp"],
+      "env": {}
     }
   }
 }

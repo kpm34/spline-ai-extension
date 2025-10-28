@@ -5,6 +5,10 @@ console.log('🚀 Spline AI Extension background service worker started');
 const THREE_AGENT_API = 'http://localhost:8081/api';  // Primary: Three-Agent System
 const SIMAI_API_BASE = 'http://localhost:3003/api';   // Optional: SIM.ai for workflows
 
+// Session management
+let currentSessionId = null;
+let currentSceneUrl = null;
+
 // Import AI Command Parser
 importScripts('ai-command-parser.js');
 
@@ -18,9 +22,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             let response;
 
             switch (request.action) {
+                // Session initialization (called when scene loads)
+                case 'initializeSession':
+                    response = await initializeSession(request.sceneUrl, sender.tab.id);
+                    break;
+
                 // PRIMARY: Direct Three-Agent System API
                 case 'executeAICommand':
-                    response = await executeAICommand(request.prompt, request.context);
+                    response = await executeAICommand(request.prompt, request.context, sender.tab.id);
                     break;
 
                 // OPTIONAL: SIM.ai workflow execution
@@ -66,6 +75,95 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     // Return true to indicate async response
     return true;
 });
+
+// Initialize a new Three-Agent session
+async function initializeSession(sceneUrl, tabId) {
+    console.log(`🔧 Initializing session for scene: ${sceneUrl}`);
+
+    try {
+        // Check if we already have a session for this scene
+        if (currentSessionId && currentSceneUrl === sceneUrl) {
+            console.log('✅ Using existing session:', currentSessionId);
+            return {
+                success: true,
+                sessionId: currentSessionId,
+                reused: true
+            };
+        }
+
+        // Initialize new session in extension mode (no Puppeteer)
+        const response = await fetch(`${THREE_AGENT_API}/session/init`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                sceneUrl: sceneUrl,
+                mode: 'extension'  // Extension mode: no browser launch
+            })
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Session init failed: ${response.status} - ${errorText}`);
+        }
+
+        const data = await response.json();
+
+        // Store session info
+        currentSessionId = data.sessionId;
+        currentSceneUrl = sceneUrl;
+
+        console.log('✅ Session initialized:', currentSessionId);
+
+        // Store in chrome.storage for persistence
+        await chrome.storage.local.set({
+            sessionId: currentSessionId,
+            sceneUrl: currentSceneUrl
+        });
+
+        return {
+            success: true,
+            sessionId: currentSessionId,
+            reused: false
+        };
+
+    } catch (error) {
+        console.error('❌ Failed to initialize session:', error);
+        return {
+            success: false,
+            error: error.message
+        };
+    }
+}
+
+// Get or create session (helper function)
+async function ensureSession(tabId) {
+    // Check if we have a current session
+    if (currentSessionId) {
+        return currentSessionId;
+    }
+
+    // Try to restore from storage
+    const stored = await chrome.storage.local.get(['sessionId', 'sceneUrl']);
+    if (stored.sessionId && stored.sceneUrl) {
+        currentSessionId = stored.sessionId;
+        currentSceneUrl = stored.sceneUrl;
+        console.log('🔄 Restored session from storage:', currentSessionId);
+        return currentSessionId;
+    }
+
+    // No session available - need to initialize
+    // Get current tab URL
+    const tab = await chrome.tabs.get(tabId);
+    const initResult = await initializeSession(tab.url, tabId);
+
+    if (!initResult.success) {
+        throw new Error(`Session initialization failed: ${initResult.error}`);
+    }
+
+    return initResult.sessionId;
+}
 
 // Validate SIM.ai API key
 async function validateSimaiKey(apiKey) {
@@ -383,7 +481,7 @@ async function parseAICommand(command) {
 }
 
 // Execute AI command via Three-Agent System API (Primary Method)
-async function executeAICommand(prompt, context = {}) {
+async function executeAICommand(prompt, context = {}, tabId) {
     if (!prompt) {
         return { success: false, error: 'No prompt provided' };
     }
@@ -394,13 +492,29 @@ async function executeAICommand(prompt, context = {}) {
             console.log(`📋 Context:`, context);
         }
 
-        // Call Three-Agent System API directly
+        // Ensure we have a session
+        let sessionId;
+        try {
+            sessionId = await ensureSession(tabId);
+            console.log(`📍 Using session: ${sessionId}`);
+        } catch (sessionError) {
+            console.error('⚠️ Session error:', sessionError.message);
+            return {
+                success: false,
+                error: 'No active session. Initialize a session first.',
+                details: sessionError.message,
+                hint: 'Make sure you\'re on a Spline scene page (app.spline.design/file/...)'
+            };
+        }
+
+        // Call Three-Agent System API with session
         const response = await fetch(`${THREE_AGENT_API}/execute`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
+                sessionId: sessionId,
                 prompt: prompt,
                 context: context
             })
@@ -408,6 +522,34 @@ async function executeAICommand(prompt, context = {}) {
 
         if (!response.ok) {
             const errorText = await response.text();
+
+            // Check if session expired
+            if (response.status === 400 && errorText.includes('session')) {
+                console.warn('⚠️ Session expired, reinitializing...');
+                currentSessionId = null;
+                await chrome.storage.local.remove(['sessionId', 'sceneUrl']);
+
+                // Retry once with new session
+                sessionId = await ensureSession(tabId);
+                const retryResponse = await fetch(`${THREE_AGENT_API}/execute`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ sessionId, prompt, context })
+                });
+
+                if (retryResponse.ok) {
+                    const retryData = await retryResponse.json();
+                    return {
+                        success: true,
+                        executionId: retryData.executionId,
+                        result: retryData.result,
+                        prompt: prompt,
+                        context: context,
+                        sessionReinitalized: true
+                    };
+                }
+            }
+
             throw new Error(`API error: ${response.status} - ${errorText}`);
         }
 
@@ -416,6 +558,25 @@ async function executeAICommand(prompt, context = {}) {
         console.log(`✅ AI command executed successfully`);
         console.log(`📊 Result:`, data);
 
+        // Handle extension mode response (plan instead of execution)
+        if (data.mode === 'extension' && data.plan) {
+            console.log(`📋 Plan generated:`, data.plan);
+
+            // TODO: Send plan to content script for execution
+            // For now, just return the plan
+
+            return {
+                success: true,
+                executionId: data.executionId,
+                mode: 'extension',
+                plan: data.plan,
+                prompt: prompt,
+                context: context,
+                message: 'Plan generated. In-page execution coming soon!'
+            };
+        }
+
+        // Handle puppeteer mode response (full execution)
         return {
             success: true,
             executionId: data.executionId,

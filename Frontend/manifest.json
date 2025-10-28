@@ -34,7 +34,7 @@
   "options_page": "options.html",
   "web_accessible_resources": [
     {
-      "resources": ["overlay.html", "overlay.css", "overlay.js"],
+      "resources": ["overlay.html", "overlay.css", "overlay.js", "spline-editor-inspector.js"],
       "matches": ["https://app.spline.design/*"]
     }
   ]
